@@ -1,0 +1,34 @@
+{
+  "name": "voxel-aabb-sweep",
+  "version": "0.1.0",
+  "description": "Sweep an AABB through voxels or a tileset and find collisions",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "tap test/*",
+    "bench": "node bench/*.js"
+  },
+  "author": "Andy Hall",
+  "license": "MIT",
+  "devDependencies": {
+    "benchmark": "^2.1.0",
+    "tap": "^5.7.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andyhall/voxel-aabb-sweep.git"
+  },
+  "keywords": [
+    "voxel",
+    "aabb",
+    "sweep",
+    "collision"
+  ],
+  "bugs": {
+    "url": "https://github.com/andyhall/voxel-aabb-sweep/issues"
+  },
+  "homepage": "https://github.com/andyhall/voxel-aabb-sweep#readme",
+  "dependencies": {}
+}
