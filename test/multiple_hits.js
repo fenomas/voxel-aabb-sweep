@@ -37,7 +37,7 @@ test("basics", function (t) {
         return sweep(getVoxel, box, dir)
     }
 
-    var N = 100, ct = 0
+    var N = 1000, ct = 0
     do {
         trial()
     } while (++ct < N && ok)

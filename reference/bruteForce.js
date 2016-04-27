@@ -5,8 +5,8 @@
 
 
 function sweep_impl(getVoxel,
-    xbase, ybase, zbase,
-    xmax, ymax, zmax,
+    x0, y0, z0,
+    x1, y1, z1,
     dx, dy, dz,
     max_d, hit_pos, hit_norm) {
 
@@ -14,35 +14,23 @@ function sweep_impl(getVoxel,
 
     var N = 1e5
 
-    // coords of leading corner in each axis
-    var px = (dx > 0) ? xmax : xbase
-    var py = (dy > 0) ? ymax : ybase
-    var pz = (dz > 0) ? zmax : zbase
-
-    // float coords of trailing corner in each axis
-    var tx = (dx > 0) ? xbase : xmax
-    var ty = (dy > 0) ? ybase : ymax
-    var tz = (dz > 0) ? zbase : zmax
+    // leading corner in each axis
+    var px = (dx > 0) ? x1 : x0
+    var py = (dy > 0) ? y1 : y0
+    var pz = (dz > 0) ? z1 : z0
 
     // stepping directions in each axis
     var stepx = max_d * dx / N
     var stepy = max_d * dy / N
     var stepz = max_d * dz / N
-    
+
     // main loop
     var floor = Math.floor
     var ct = 0
+    var currAxis = -1
+    var steppedIndex = -1
 
     while (ct < N) {
-
-        // check for collisions
-        var x0 = (dx > 0) ? tx : px
-        var y0 = (dy > 0) ? ty : py
-        var z0 = (dz > 0) ? tz : pz
-
-        var x1 = px + tx - x0
-        var y1 = py + ty - y0
-        var z1 = pz + tz - z0
 
         var voxel
         outer:
@@ -56,43 +44,69 @@ function sweep_impl(getVoxel,
         }
 
         if (voxel) {
-            if (hit_pos) {
-                hit_pos[0] = Math.min(px, tx)
-                hit_pos[1] = Math.min(py, ty)
-                hit_pos[2] = Math.min(pz, tz)
-            }
-            if (hit_norm) {
-                hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
-            }
+            finish()
 
             return max_d * ct / N
+
         }
 
         // step along vector by d/N
-        
-        ct++
 
-        px += stepx
-        py += stepy
-        pz += stepz
+        steppedIndex = -1
 
-        tx += stepx
-        ty += stepy
-        tz += stepz
+        while (steppedIndex === -1 && ct < N) {
 
+            currAxis = (currAxis + 1) % 3
+            if (currAxis === 0) ct++
+
+
+            var prev, next
+            if (currAxis === 0) {
+                prev = floor(px)
+                x0 += stepx
+                x1 += stepx
+                px += stepx
+                next = floor(px)
+            } else if (currAxis === 1) {
+                prev = floor(py)
+                y0 += stepy
+                y1 += stepy
+                py += stepy
+                next = floor(py)
+            } else if (currAxis === 2) {
+                prev = floor(pz)
+                z0 += stepz
+                z1 += stepz
+                pz += stepz
+                next = floor(pz)
+            }
+
+            if (prev !== next) steppedIndex = currAxis
+
+        }
     }
 
     // no voxel hit found
-    if (hit_pos) {
-        hit_pos[0] = px
-        hit_pos[1] = py
-        hit_pos[2] = pz
-    }
-    if (hit_norm) {
-        hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
-    }
+    steppedIndex = -1
+    finish()
 
     return max_d
+
+
+    function finish() {
+        if (hit_pos) {
+            hit_pos[0] = x0
+            hit_pos[1] = y0
+            hit_pos[2] = z0
+        }
+        if (hit_norm) {
+            hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
+            if (steppedIndex === 0) hit_norm[0] = (dx > 0) ? -1 : 1
+            if (steppedIndex === 1) hit_norm[1] = (dy > 0) ? -1 : 1
+            if (steppedIndex === 2) hit_norm[2] = (dz > 0) ? -1 : 1
+        }
+
+    }
 
 }
 

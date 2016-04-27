@@ -113,17 +113,8 @@ function sweep_impl(getVoxel,
 
 
 		if (collided) {
-			if (hit_pos) {
-				hit_pos[0] = xbase + t * dx
-				hit_pos[1] = ybase + t * dy
-				hit_pos[2] = zbase + t * dz
-			}
-			if (hit_norm) {
-				hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
-				if (steppedIndex === 0) hit_norm[0] = -stepx
-				if (steppedIndex === 1) hit_norm[1] = -stepy
-				if (steppedIndex === 2) hit_norm[2] = -stepz
-			}
+			finish()
+
 			return t
 		}
 
@@ -158,16 +149,26 @@ function sweep_impl(getVoxel,
 	}
 
 	// no voxel hit found
-	if (hit_pos) {
-		hit_pos[0] = px + t * dx
-		hit_pos[1] = py + t * dy
-		hit_pos[2] = pz + t * dz
-	}
-	if (hit_norm) {
-		hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
-	}
-
+	steppedIndex = -1
+	t = max_d
+	finish()
 	return max_d
+
+
+
+	function finish() {
+		if (hit_pos) {
+			hit_pos[0] = xbase + t * dx
+			hit_pos[1] = ybase + t * dy
+			hit_pos[2] = zbase + t * dz
+		}
+		if (hit_norm) {
+			hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
+			if (steppedIndex === 0) hit_norm[0] = -stepx
+			if (steppedIndex === 1) hit_norm[1] = -stepy
+			if (steppedIndex === 2) hit_norm[2] = -stepz
+		}
+	}
 
 }
 
@@ -175,7 +176,7 @@ function sweep_impl(getVoxel,
 
 // conform inputs
 
-function sweep(getVoxel, box, direction, hit_pos, hit_norm) {
+function sweep(getVoxel, box, direction, hit_pos, hit_norm, slide) {
 	var bx = +box.base[0]
 	var by = +box.base[1]
 	var bz = +box.base[2]

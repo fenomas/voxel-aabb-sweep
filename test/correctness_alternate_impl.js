@@ -34,7 +34,7 @@ test("correctness", function (t) {
     var epsilon = 1e-3 // brute force does 1e5 iterations
     var equals = function (a, b) { return Math.abs(a - b) < epsilon }
 
-    var N = 100
+    var N = 1000
     var ok
 
     for (var i = 0; i < N; i++) {

@@ -172,12 +172,14 @@ function sweep_impl(getVoxel,
 		}
 
 	}
+	
+	t = max_d
 
 	// no voxel hit found
 	if (hit_pos) {
-		hit_pos[0] = px + t * dx
-		hit_pos[1] = py + t * dy
-		hit_pos[2] = pz + t * dz
+		hit_pos[0] = xbase + t * dx
+		hit_pos[1] = ybase + t * dy
+		hit_pos[2] = zbase + t * dz
 	}
 	if (hit_norm) {
 		hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
