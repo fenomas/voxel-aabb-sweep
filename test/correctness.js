@@ -2,49 +2,54 @@
 
 var test = require('tap').test
 
+var AABB = require('../reference/aabb')
 var sweep = require('../index')
-var brute = require('../reference/bruteForce')
 
+
+var N = 500
+var epsilon = 1e-5
+var equals = function (a, b) { return Math.abs(a - b) < epsilon }
 
 
 test("correctness (unobstructed)", function (t) {
 
     // correct behavior when there's no objstruction
     var noVoxels = function () { return false }
-    var box = {
-        base: [0, 0, 0],
-        max: [0, 0, 0],
-    }
+    var box = new AABB([0, 0, 0], [0, 0, 0])
     var dir = [0, 0, 0]
-
-    var hit1 = [0, 0, 0]
-    var hit2 = [0, 0, 0]
+    var collided = false
+    var callback = function (dist, axis, dir, left) {
+        collided = true
+        return true
+    }
 
     // comparisons
-    var epsilon = 1e-5
-    var equals = function (a, b) { return Math.abs(a - b) < epsilon }
-    
-    var N = 1000
     var ok
 
     for (var i = 0; i < N; i++) {
-        randomizeInputs(box, dir)
+        var expected = []
         var sum = 0
-        for (var j=0; j<3; j++) {
-            hit2[j] = box.base[j] + dir[j]
+        collided = false
+        // randomize
+        for (var j = 0; j < 3; j++) {
+            box.base[j] = 1 - 2 * Math.random()
+            box.max[j] = box.base[j] + 0.01 + 3 * Math.random()
+            dir[j] = 20 * (0.5 - Math.random())
+            expected[j] = box.base[j] + dir[j]
             sum += dir[j] * dir[j]
         }
-        var len = Math.sqrt(sum)
+        var dist = Math.sqrt(sum)
 
         // find results
-        var d = sweep(noVoxels, box, dir, hit1)
+        var res = sweep(noVoxels, box, dir, callback)
 
         // compare
         ok = true
-        ok = ok && equals(d, len)
-        ok = ok && equals(hit1[0], hit2[0])
-        ok = ok && equals(hit1[1], hit2[1])
-        ok = ok && equals(hit1[2], hit2[2])
+        ok = ok && !collided
+        ok = ok && equals(box.base[0], expected[0])
+        ok = ok && equals(box.base[1], expected[1])
+        ok = ok && equals(box.base[2], expected[2])
+        ok = ok && equals(dist, res)
 
         if (!ok) {
             t.fail('Unobstructed results differed on ' + i + 'th test')
@@ -59,75 +64,159 @@ test("correctness (unobstructed)", function (t) {
 
 
 
+test("correctness (flat wall)", function (t) {
 
-test("correctness (obstructed)", function (t) {
-
-    var fakeVoxel = function (x, y, z) {
-        // always true outside radius = 15, always false inside r=10
-        var dsq = x * x + y * y + z * z
-        if (dsq > 15 * 15) return true
-        if (dsq < 10 * 10) return false
-        // else do whatever
-        if (x % 3) return true
-        if (y % 4) return true
-        if (z % 2) return true
-        return false
-    }
-    var box = {
-        base: [0, 0, 0],
-        max: [0, 0, 0],
-    }
+    var getVoxels = [
+        function (x, y, z) { return Math.abs(x) === 5 },
+        function (x, y, z) { return Math.abs(y) === 5 },
+        function (x, y, z) { return Math.abs(z) === 5 }
+    ]
+    var box = new AABB([0, 0, 0], [1, 1, 1])
     var dir = [0, 0, 0]
-    var d1 = 0
-    var d2 = 0
-    var hit1 = [0, 0, 0]
-    var hit2 = [0, 0, 0]
+    var callback = function (dist, axis, dir, vec) {
+        vec[axis] = 0
+    }
 
-    // comparisons
-    var epsilon = 1e-3 // brute force does 1e5 iterations
-    var equals = function (a, b) { return Math.abs(a - b) < epsilon }
+    function test(axis, sign) {
+        box.setPosition([1, 1, 1])
+        var dir = [2, 2, 2]
+        dir[axis] = 10 * sign
+        var expected = []
+        for (var j = 0; j < 3; j++) expected[j] = box.base[j] + dir[j]
+        expected[axis] = (sign > 0) ? 4 : -4
+        var dist = sweep(getVoxels[axis], box, dir, callback)
 
-    var N = 1000
-    var ok
-
-    for (var i = 0; i < N; i++) {
-        randomizeInputs(box, dir)
-        
-        // find results
-        d1 = sweep(fakeVoxel, box, dir, hit1)
-        d2 = brute(fakeVoxel, box, dir, hit2)
-
-        // compare
-        ok = true
-        ok = ok && equals(d1, d2)
-        ok = ok && equals(hit1[0], hit2[0])
-        ok = ok && equals(hit1[1], hit2[1])
-        ok = ok && equals(hit1[2], hit2[2])
+        ok = ok && equals(expected[0], box.base[0])
+        ok = ok && equals(expected[1], box.base[1])
+        ok = ok && equals(expected[2], box.base[2])
 
         if (!ok) {
-            t.fail('Obstructed results differed on ' + i + 'th test')
-            break
+            t.fail('Obstructed test failed (box) ')
+            console.log('axis, dir', axis, dir)
+            console.log('box.base', box.base)
+            console.log('expected', expected)
         }
+        return ok
     }
 
-    if (ok) t.pass('Passed ' + N + ' random correctness tests (obstructed).')
+    var ok = true;
+    [0, 1, 2].map(function (axis) {
+        [1, -1].map(function (dir) {
+            if (!ok) return
+            ok = ok && test(axis, dir)
+        })
+    })
+
+    if (ok) t.pass('Obstructed (one wall).')
+
+    t.end()
+})
+
+
+test("correctness (box)", function (t) {
+
+    var getVoxels = function (x, y, z) {
+        if (Math.abs(x) === 5) return true
+        if (Math.abs(y) === 5) return true
+        if (Math.abs(z) === 5) return true
+        return false
+    }
+    var box = new AABB([0, 0, 0], [1, 1, 1])
+    var dir = [0, 0, 0]
+    var callback = function (dist, axis, dir, vec) {
+        vec[axis] = 0
+    }
+
+    var test = function (dx, dy, dz) {
+        box.setPosition([1, 1, 1])
+        var dir = [dx, dy, dz]
+        var expected = []
+        for (var j = 0; j < 3; j++) expected[j] = (dir[j] > 0) ? 4 : -4
+
+        var dist = sweep(getVoxels, box, dir, callback)
+        ok = ok && equals(expected[0], box.base[0])
+        ok = ok && equals(expected[1], box.base[1])
+        ok = ok && equals(expected[2], box.base[2])
+
+        if (!ok) {
+            t.fail('Obstructed test failed (box)')
+            console.log('dx, dy, dz', dx, dy, dz)
+            console.log('box.base', box.base)
+            console.log('expected', expected)
+        }
+        return ok
+    }
+
+    var ok = true
+    if (ok) ok = ok && test(12, 15, 17)
+    if (ok) ok = ok && test(-12, 15, 17)
+    if (ok) ok = ok && test(12, -15, 17)
+    if (ok) ok = ok && test(-12, -15, 17)
+    if (ok) ok = ok && test(12, 15, -17)
+    if (ok) ok = ok && test(-12, 15, -17)
+    if (ok) ok = ok && test(12, -15, -17)
+    if (ok) ok = ok && test(-12, -15, -17)
+
+    if (ok) t.pass('Obstructed (box).')
 
     t.end()
 })
 
 
 
-function randomizeInputs(box, dir) {
-    var lensq = 0
-    for (var j = 0; j < 3; j++) {
-        box.base[j] = 1 - 2 * Math.random()
-        var size = 0.01 + 3 * Math.random()
-        box.max[j] = box.base[j] + size
-        dir[j] = 0.5 - Math.random()
-        lensq += dir[j] * dir[j]
+
+test("correctness (nearby obstruction)", function (t) {
+
+    var getVoxels = function (x, y, z) {
+        if (Math.abs(x) < 2 &&
+            Math.abs(y) < 2 &&
+            Math.abs(z) < 2) return true
+        return false
     }
-    var len = Math.sqrt(lensq)
-    for (j = 0; j < 3; j++) dir[j] *= 20 / len
-}
+    var box = new AABB([0, 0, 0], [2, 2, 2])
+
+    var test = function (axis, dir) {
+        var arr = [-1, -1, -1]
+        var vec = [6, 6, 6]
+        arr[axis] = 10 * dir
+        vec[axis] = -12 * dir
+        box.setPosition(arr)
+        var expected = [5, 5, 5]
+        expected[axis] = -2 * dir
+
+        var dist = sweep(getVoxels, box, vec, function (dist, axis, dir, vec) {
+            console.log('-------', dist, axis, dir, vec)
+            vec[axis] = 0
+            return true
+        })
+
+        var ok = equals(expected[0], box.base[0])
+        ok = ok && equals(expected[1], box.base[1])
+        ok = ok && equals(expected[2], box.base[2])
+
+        if (!ok) {
+            t.fail('Nearby obstruction test failed')
+            console.log('   axis, dir', axis, dir)
+            console.log('   box.base', box.base)
+            console.log('   expected', expected)
+        }
+        return ok
+    }
+
+    var ok = true
+    if (ok) ok = ok && test(0, 1)
+    if (ok) ok = ok && test(1, 1)
+    if (ok) ok = ok && test(2, 1)
+    if (ok) ok = ok && test(0, -1)
+    if (ok) ok = ok && test(1, -1)
+    if (ok) ok = ok && test(2, -1)
+
+    // if (ok) t.pass('Nearby obstruction')
+
+    t.end()
+})
+
+
+
 
 

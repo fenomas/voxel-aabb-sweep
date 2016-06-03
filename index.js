@@ -1,209 +1,237 @@
 'use strict'
 
-function sweep_impl(getVoxel,
-	xbase, ybase, zbase,
-	xmax, ymax, zmax,
-	dx, dy, dz,
-	max_d, hit_pos, hit_norm) {
 
-	// consider algo as a raycast along the AABB's leading corner
-	// as raycast enters each new voxel, iterate in 2D over the AABB's 
-	// leading face in that axis looking for collisions
-	// 
-	// original raycast implementation: https://github.com/andyhall/fast-voxel-raycast
-	// original raycast algorithm: http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
+// reused array instances
 
-	var floor = Math.floor
-
-	// parametrization t along raycast
-	var t = 0.0
-
-	// coords of leading corner in each axis
-	var px = (dx > 0) ? xmax : xbase
-	var py = (dy > 0) ? ymax : ybase
-	var pz = (dz > 0) ? zmax : zbase
-
-	// integer coord of leading corner
-	var ix = floor(px) | 0
-	var iy = floor(py) | 0
-	var iz = floor(pz) | 0
-
-	// float coords of trailing corner in each axis
-	var tx = (dx > 0) ? xbase : xmax
-	var ty = (dy > 0) ? ybase : ymax
-	var tz = (dz > 0) ? zbase : zmax
-
-	// size
-	var sizex = xmax - xbase
-	var sizey = ymax - ybase
-	var sizez = zmax - zbase
-
-	// stepping directions in each axis
-	var stepx = (dx > 0) ? 1 : -1
-	var stepy = (dy > 0) ? 1 : -1
-	var stepz = (dz > 0) ? 1 : -1
-
-	// distance along t required to move one voxel in each axis
-	// note dx,dy,dz are already normalized
-	var txDelta = Math.abs(1 / dx)
-	var tyDelta = Math.abs(1 / dy)
-	var tzDelta = Math.abs(1 / dz)
-
-
-	// location of nearest voxel boundary, in units of t 
-	var xdist = (stepx > 0) ? (ix + 1 - px) : (px - ix)
-	var ydist = (stepy > 0) ? (iy + 1 - py) : (py - iy)
-	var zdist = (stepz > 0) ? (iz + 1 - pz) : (pz - iz)
-
-	var txMax = (txDelta < Infinity) ? txDelta * xdist : Infinity
-	var tyMax = (tyDelta < Infinity) ? tyDelta * ydist : Infinity
-	var tzMax = (tzDelta < Infinity) ? tzDelta * zdist : Infinity
-
-	var steppedIndex = -1
-
-
-	// main loop along raycast vector
-	
-	while (t <= max_d) {
-
-		// exit check - sweep over 2d face of newly-entered voxels in the stepped axis
-
-		var diffx = t * dx
-		var diffy = t * dy
-		var diffz = t * dz
-
-		// loop indices
-		var x0, y0, z0
-
-		if (steppedIndex === 0) {
-			x0 = ix
-			y0 = floor(ty + diffy)
-			z0 = floor(tz + diffz)
-		} else if (steppedIndex === 1) {
-			x0 = floor(tx + diffx)
-			y0 = iy
-			z0 = floor(tz + diffz)
-		} else if (steppedIndex === 2) {
-			x0 = floor(tx + diffx)
-			y0 = floor(ty + diffy)
-			z0 = iz
-		} else { // at t==0, sweep the whole AABB volume
-			x0 = floor(tx + diffx)
-			y0 = floor(ty + diffy)
-			z0 = floor(tz + diffz)
-		}
-
-		var x1 = ix + stepx
-		var y1 = iy + stepy
-		var z1 = iz + stepz
-		
-
-		var collided = false
-		outer:
-		for (var x = x0; x != x1; x += stepx) {
-			for (var y = y0; y != y1; y += stepy) {
-				for (var z = z0; z != z1; z += stepz) {
-					if (getVoxel(x, y, z)) {
-						collided = true
-						break outer
-					}
-				}
-			}
-		}
-
-
-		if (collided) {
-			finish()
-
-			return t
-		}
-
-
-		// advance t to next nearest voxel boundary
-		if (txMax < tyMax) {
-			if (txMax < tzMax) {
-				ix += stepx
-				t = txMax
-				txMax += txDelta
-				steppedIndex = 0
-			} else {
-				iz += stepz
-				t = tzMax
-				tzMax += tzDelta
-				steppedIndex = 2
-			}
-		} else {
-			if (tyMax < tzMax) {
-				iy += stepy
-				t = tyMax
-				tyMax += tyDelta
-				steppedIndex = 1
-			} else {
-				iz += stepz
-				t = tzMax
-				tzMax += tzDelta
-				steppedIndex = 2
-			}
-		}
-
-	}
-
-	// no voxel hit found
-	steppedIndex = -1
-	t = max_d
-	finish()
-	return max_d
+var tr_arr = []
+var ldi_arr = []
+var tri_arr = []
+var step_arr = []
+var tDelta_arr = []
+var tNext_arr = []
+var vec_arr = []
+var normed_arr = []
+var base_arr = []
+var max_arr = []
+var left_arr = []
+var result_arr = []
 
 
 
-	function finish() {
-		if (hit_pos) {
-			hit_pos[0] = xbase + t * dx
-			hit_pos[1] = ybase + t * dy
-			hit_pos[2] = zbase + t * dz
-		}
-		if (hit_norm) {
-			hit_norm[0] = hit_norm[1] = hit_norm[2] = 0
-			if (steppedIndex === 0) hit_norm[0] = -stepx
-			if (steppedIndex === 1) hit_norm[1] = -stepy
-			if (steppedIndex === 2) hit_norm[2] = -stepz
-		}
-	}
+// core implementation:
+
+function sweep_impl(getVoxel, callback, vec, base, max, result) {
+
+    // consider algo as a raycast along the AABB's leading corner
+    // as raycast enters each new voxel, iterate in 2D over the AABB's 
+    // leading face in that axis looking for collisions
+    // 
+    // original raycast implementation: https://github.com/andyhall/fast-voxel-raycast
+    // original raycast paper: http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
+
+    var tr = tr_arr
+    var ldi = ldi_arr
+    var tri = tri_arr
+    var step = step_arr
+    var tDelta = tDelta_arr
+    var tNext = tNext_arr
+    var normed = normed_arr
+
+    var floor = Math.floor
+    var cumulative_t = 0.0
+    var t = 0.0
+    var max_t = 0.0
+    var axis = 0
+    var i = 0
+
+
+    // init for the current sweep vector and take first step
+    initSweep()
+    if (max_t === 0) return 0
+
+    axis = stepForward()
+
+    // loop along raycast vector
+    while (t <= max_t) {
+        
+        // sweeps over leading face of AABB
+        if (checkCollision(axis)) {
+            // calls the callback and decides whether to continue
+            var done = handleCollision()
+            if (done) return cumulative_t
+        }
+
+        axis = stepForward()
+    }
+
+    // reached the end of the vector unobstructed, finish and exit
+    cumulative_t += max_t
+    for (i = 0; i < 3; i++) result[i] += vec[i]
+    return cumulative_t
+
+
+
+
+
+    // low-level implementations of each step:
+
+    function initSweep() {
+
+        // parametrization t along raycast
+        t = 0.0
+        max_t = Math.sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2])
+        if (max_t === 0) return
+
+        var EPSILON = 1e-5
+
+        for (var i = 0; i < 3; i++) {
+            var dir = (vec[i] >= 0)
+            step[i] = dir ? 1 : -1
+            // trailing edge coord
+            tr[i] = dir ? base[i] : max[i]
+            // leading edge coord
+            var lead = dir ? max[i] : base[i]
+            // int values for edges, i.e. voxel coord of each edge 
+            // sunken in a smidge to account for abutting a voxel edge
+            ldi[i] = floor(lead - step[i] * EPSILON)
+            tri[i] = floor(tr[i] + step[i] * EPSILON)
+            // normed vector
+            normed[i] = vec[i] / max_t
+            // distance along t required to move one voxel in each axis
+            tDelta[i] = Math.abs(1 / normed[i])
+            // location of nearest voxel boundary, in units of t 
+            var dist = dir ? (ldi[i] + 1 - lead) : (lead - ldi[i])
+            tNext[i] = (tDelta[i] < Infinity) ? tDelta[i] * dist : Infinity
+        }
+
+        // console.log('===== sweep initted', t, max_t, 'vec: ', vec)
+
+    }
+
+
+    // check for collisions - iterate over the leading face on the advancing axis
+
+    function checkCollision(i_axis) {
+        var stepx = step[0]
+        var x0 = (i_axis === 0) ? ldi[0] : tri[0]
+        var x1 = ldi[0] + stepx
+
+        var stepy = step[1]
+        var y0 = (i_axis === 1) ? ldi[1] : tri[1]
+        var y1 = ldi[1] + stepy
+
+        var stepz = step[2]
+        var z0 = (i_axis === 2) ? ldi[2] : tri[2]
+        var z1 = ldi[2] + stepz
+
+        var j_axis = (i_axis + 1) % 3
+        var k_axis = (i_axis + 2) % 3
+        var s = ['x', 'y', 'z'][i_axis]
+        var js = ['x', 'y', 'z'][j_axis]
+        var ks = ['x', 'y', 'z'][k_axis]
+        var i0 = [x0, y0, z0][i_axis]
+        var j0 = [x0, y0, z0][j_axis]
+        var k0 = [x0, y0, z0][k_axis]
+        var i1 = [x1 - stepx, y1 - stepy, z1 - stepz][i_axis]
+        var j1 = [x1 - stepx, y1 - stepy, z1 - stepz][j_axis]
+        var k1 = [x1 - stepx, y1 - stepy, z1 - stepz][k_axis]
+        // console.log('=== step', s, 'to', i0, '   sweep', js, j0 + '-' + j1, '   ', ks, k0 + '-' + k1)
+
+        for (var x = x0; x != x1; x += stepx) {
+            for (var y = y0; y != y1; y += stepy) {
+                for (var z = z0; z != z1; z += stepz) {
+                    if (getVoxel(x, y, z)) return true
+                }
+            }
+        }
+        return false
+    }
+
+
+    // on collision - call the callback and return or set up for the next sweep
+
+    function handleCollision() {
+
+        // set up for callback
+        cumulative_t += t
+        var dir = step[axis]
+
+        // vector moved so far, and left to move
+        var done = t / max_t
+        var left = left_arr
+        for (i = 0; i < 3; i++) {
+            var dv = vec[i] * done
+            result[i] += dv
+            base[i] += dv
+            max[i] += dv
+            left[i] = vec[i] - dv
+        }
+
+        // call back to let client update the "left to go" vector
+        var res = callback(cumulative_t, axis, dir, left)
+
+        // bail out out on truthy response
+        if (res) return true
+
+        // init for new sweep along vec
+        for (i = 0; i < 3; i++) vec[i] = left[i]
+        initSweep()
+        if (max_t === 0) return true // no vector left
+
+        return false
+    }
+
+
+    // advance to next voxel boundary, and return which axis was stepped
+
+    function stepForward() {
+        var axis = (tNext[0] < tNext[1]) ?
+            ((tNext[0] < tNext[2]) ? 0 : 2) :
+            ((tNext[1] < tNext[2]) ? 1 : 2)
+        // console.log('==== stepping along: ', axis)
+        var dt = tNext[axis] - t
+        t = tNext[axis]
+        ldi[axis] += step[axis]
+        tNext[axis] += tDelta[axis]
+        for (i = 0; i < 3; i++) {
+            tr[i] += dt * normed[i]
+            tri[i] = floor(tr[i])
+        }
+ 
+        return axis
+    }
 
 }
 
 
 
+
+
 // conform inputs
 
-function sweep(getVoxel, box, direction, hit_pos, hit_norm, slide) {
-	var bx = +box.base[0]
-	var by = +box.base[1]
-	var bz = +box.base[2]
-	var mx = +box.max[0]
-	var my = +box.max[1]
-	var mz = +box.max[2]
+function sweep(getVoxel, box, dir, callback, noTranslate) {
 
-	var dx = +direction[0]
-	var dy = +direction[1]
-	var dz = +direction[2]
-	var dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    var vec = vec_arr
+    var base = base_arr
+    var max = max_arr
+    var result = result_arr
 
-	if (dist === 0) {
-		throw new Error("Can't sweep along a zero vector")
-	}
+    // init parameter float arrays
+    for (var i = 0; i < 3; i++) {
+        vec[i] = +dir[i]
+        max[i] = +box.max[i]
+        base[i] = +box.base[i]
+        result[i] = 0.0
+    }
 
-	dx /= dist
-	dy /= dist
-	dz /= dist
+    // run sweep implementation
+    var dist = sweep_impl(getVoxel, callback, vec, base, max, result)
 
-	return sweep_impl(
-		getVoxel,
-		bx, by, bz,
-		mx, my, mz,
-		dx, dy, dz, dist,
-		hit_pos, hit_norm
-	)
+    // translate box by distance needed to updated base value
+    if (!noTranslate) box.translate(result)
+
+    // return value is total distance moved (not necessarily magnitude of [end]-[start])
+    return dist
 }
 
 module.exports = sweep

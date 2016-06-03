@@ -1,19 +1,17 @@
 {
   "name": "voxel-aabb-sweep",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sweep an AABB through voxels or a tileset and find collisions",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "tap test/*",
-    "bench": "node bench/*.js"
+    "test": "tap test/*"
   },
   "author": "Andy Hall",
   "license": "MIT",
   "devDependencies": {
-    "benchmark": "^2.1.0",
     "tap": "^5.7.1"
   },
   "repository": {
