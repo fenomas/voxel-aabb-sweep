@@ -53,7 +53,7 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
 
     // loop along raycast vector
     while (t <= max_t) {
-        
+
         // sweeps over leading face of AABB
         if (checkCollision(axis)) {
             // calls the callback and decides whether to continue
@@ -74,27 +74,21 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
 
 
     // low-level implementations of each step:
-
     function initSweep() {
 
         // parametrization t along raycast
         t = 0.0
         max_t = Math.sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2])
         if (max_t === 0) return
-
-        var EPSILON = 1e-5
-
         for (var i = 0; i < 3; i++) {
             var dir = (vec[i] >= 0)
             step[i] = dir ? 1 : -1
-            // trailing edge coord
-            tr[i] = dir ? base[i] : max[i]
-            // leading edge coord
+            // trailing / trailing edge coords
             var lead = dir ? max[i] : base[i]
-            // int values for edges, i.e. voxel coord of each edge 
-            // sunken in a smidge to account for abutting a voxel edge
-            ldi[i] = floor(lead - step[i] * EPSILON)
-            tri[i] = floor(tr[i] + step[i] * EPSILON)
+            tr[i] = dir ? base[i] : max[i]
+            // int values of lead/trail edges
+            ldi[i] = leadEdgeToInt(lead, step[i])
+            tri[i] = trailEdgeToInt(tr[i], step[i])
             // normed vector
             normed[i] = vec[i] / max_t
             // distance along t required to move one voxel in each axis
@@ -103,8 +97,6 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
             var dist = dir ? (ldi[i] + 1 - lead) : (lead - ldi[i])
             tNext[i] = (tDelta[i] < Infinity) ? tDelta[i] * dist : Infinity
         }
-
-        // console.log('===== sweep initted', t, max_t, 'vec: ', vec)
 
     }
 
@@ -124,18 +116,18 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
         var z0 = (i_axis === 2) ? ldi[2] : tri[2]
         var z1 = ldi[2] + stepz
 
-        var j_axis = (i_axis + 1) % 3
-        var k_axis = (i_axis + 2) % 3
-        var s = ['x', 'y', 'z'][i_axis]
-        var js = ['x', 'y', 'z'][j_axis]
-        var ks = ['x', 'y', 'z'][k_axis]
-        var i0 = [x0, y0, z0][i_axis]
-        var j0 = [x0, y0, z0][j_axis]
-        var k0 = [x0, y0, z0][k_axis]
-        var i1 = [x1 - stepx, y1 - stepy, z1 - stepz][i_axis]
-        var j1 = [x1 - stepx, y1 - stepy, z1 - stepz][j_axis]
-        var k1 = [x1 - stepx, y1 - stepy, z1 - stepz][k_axis]
-        // console.log('=== step', s, 'to', i0, '   sweep', js, j0 + '-' + j1, '   ', ks, k0 + '-' + k1)
+        // var j_axis = (i_axis + 1) % 3
+        // var k_axis = (i_axis + 2) % 3
+        // var s = ['x', 'y', 'z'][i_axis]
+        // var js = ['x', 'y', 'z'][j_axis]
+        // var ks = ['x', 'y', 'z'][k_axis]
+        // var i0 = [x0, y0, z0][i_axis]
+        // var j0 = [x0, y0, z0][j_axis]
+        // var k0 = [x0, y0, z0][k_axis]
+        // var i1 = [x1 - stepx, y1 - stepy, z1 - stepz][i_axis]
+        // var j1 = [x1 - stepx, y1 - stepy, z1 - stepz][j_axis]
+        // var k1 = [x1 - stepx, y1 - stepy, z1 - stepz][k_axis]
+        // console.log('=== step', s, 'to', i0, '   sweep', js, j0 + ',' + j1, '   ', ks, k0 + ',' + k1)
 
         for (var x = x0; x != x1; x += stepx) {
             for (var y = y0; y != y1; y += stepy) {
@@ -188,17 +180,27 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
         var axis = (tNext[0] < tNext[1]) ?
             ((tNext[0] < tNext[2]) ? 0 : 2) :
             ((tNext[1] < tNext[2]) ? 1 : 2)
-        // console.log('==== stepping along: ', axis)
         var dt = tNext[axis] - t
         t = tNext[axis]
         ldi[axis] += step[axis]
         tNext[axis] += tDelta[axis]
         for (i = 0; i < 3; i++) {
             tr[i] += dt * normed[i]
-            tri[i] = floor(tr[i])
+            tri[i] = trailEdgeToInt(tr[i], step[i])
         }
- 
+
         return axis
+    }
+
+
+
+    function leadEdgeToInt(coord, step) {
+        var EPSILON = 1e-10
+        return floor(coord - step * EPSILON)
+    }
+    function trailEdgeToInt(coord, step) {
+        var EPSILON = 1e-10
+        return floor(coord + step * EPSILON)
     }
 
 }

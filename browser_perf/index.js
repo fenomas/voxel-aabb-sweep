@@ -88,9 +88,9 @@ function run(ver) {
         ct++
     } while (t2 < end)
 
-    var pct = Math.round((ts[0] - ts[1]) / ts[1] * 100)
-    var pctstr = '(' + (pct > 0 ? '+' : '') + pct + '%)'
-    console.log('Looped', ct, 'times: ts=', ts.map(Math.round), pctstr)
+    var pct = Math.round(ts[0] / ts[1] * 100)
+    var str = 'index took ' + pct + '% as long as index2'
+    console.log('Looped', ct, 'times: ts=', ts.map(Math.round), str)
     return sums
 }
 

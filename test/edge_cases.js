@@ -8,7 +8,7 @@ var sweep = require('../index')
 
 var epsilon = 1e-5
 var equals = function (a, b) { return Math.abs(a - b) < epsilon }
-
+var mag = function (v) { return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) }
 
 
 test("edge case - fit exactly into a gap", function (t) {
@@ -74,17 +74,17 @@ test("edge case - between two walls", function (t) {
     t.ok(testAxis(0, [0, 3, 3]), 'No collision between two walls, axis X')
     t.ok(testAxis(1, [3, 0, 3]), 'No collision between two walls, axis Y')
     t.ok(testAxis(2, [3, 3, 0]), 'No collision between two walls, axis Z')
-    
+
     t.ok(testAxis(0, [3, 3, 3]), 'No collision moving into two walls, axis X')
     t.ok(testAxis(1, [3, 3, 3]), 'No collision moving into two walls, axis Y')
     t.ok(testAxis(2, [3, 3, 3]), 'No collision moving into two walls, axis Z')
 
+    t.ok(testAxis(0, [-3, 3, 3]), 'No collision moving into two walls, axis X')
+    t.ok(testAxis(1, [3, -3, 3]), 'No collision moving into two walls, axis Y')
+    t.ok(testAxis(2, [3, 3, -3]), 'No collision moving into two walls, axis Z')
+
     t.end()
 })
 
-
-function mag(vec) {
-    return Math.sqrt(vec.reduce(function (sum, n) { return sum + n * n }, 0))
-}
 
 

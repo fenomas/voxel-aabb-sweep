@@ -13,7 +13,7 @@ var equals = function (a, b) { return Math.abs(a - b) < epsilon }
 
 test("correctness (unobstructed)", function (t) {
 
-    // correct behavior when there's no objstruction
+    // correct behavior when there's no obstruction
     var noVoxels = function () { return false }
     var box = new AABB([0, 0, 0], [0, 0, 0])
     var dir = [0, 0, 0]
