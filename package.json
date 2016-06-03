@@ -1,6 +1,6 @@
 {
   "name": "voxel-aabb-sweep",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Sweep an AABB through voxels or a tileset and find collisions",
   "main": "index.js",
   "directories": {
