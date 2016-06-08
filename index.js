@@ -20,7 +20,7 @@ var result_arr = []
 
 // core implementation:
 
-function sweep_impl(getVoxel, callback, vec, base, max, result) {
+function sweep_impl(getVoxel, callback, vec, base, max, epsilon) {
 
     // consider algo as a raycast along the AABB's leading corner
     // as raycast enters each new voxel, iterate in 2D over the AABB's 
@@ -66,7 +66,10 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
 
     // reached the end of the vector unobstructed, finish and exit
     cumulative_t += max_t
-    for (i = 0; i < 3; i++) result[i] += vec[i]
+    for (i = 0; i < 3; i++) {
+        base[i] += vec[i]
+        max[i] += vec[i]
+    }
     return cumulative_t
 
 
@@ -153,12 +156,19 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
         var left = left_arr
         for (i = 0; i < 3; i++) {
             var dv = vec[i] * done
-            result[i] += dv
             base[i] += dv
             max[i] += dv
             left[i] = vec[i] - dv
         }
 
+        // set leading edge of stepped axis exactly to voxel boundary
+        // else we'll sometimes rounding error beyond it
+        if (dir > 0) {
+            max[axis] = Math.round(max[axis])
+        } else {
+            base[axis] = Math.round(base[axis])
+        }
+        
         // call back to let client update the "left to go" vector
         var res = callback(cumulative_t, axis, dir, left)
 
@@ -195,12 +205,10 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
 
 
     function leadEdgeToInt(coord, step) {
-        var EPSILON = 1e-10
-        return floor(coord - step * EPSILON)
+        return floor(coord - step * epsilon)
     }
     function trailEdgeToInt(coord, step) {
-        var EPSILON = 1e-10
-        return floor(coord + step * EPSILON)
+        return floor(coord + step * epsilon)
     }
 
 }
@@ -211,7 +219,7 @@ function sweep_impl(getVoxel, callback, vec, base, max, result) {
 
 // conform inputs
 
-function sweep(getVoxel, box, dir, callback, noTranslate) {
+function sweep(getVoxel, box, dir, callback, noTranslate, epsilon) {
 
     var vec = vec_arr
     var base = base_arr
@@ -223,14 +231,20 @@ function sweep(getVoxel, box, dir, callback, noTranslate) {
         vec[i] = +dir[i]
         max[i] = +box.max[i]
         base[i] = +box.base[i]
-        result[i] = 0.0
     }
 
+    if (!epsilon) epsilon = 1e-10
+
     // run sweep implementation
-    var dist = sweep_impl(getVoxel, callback, vec, base, max, result)
+    var dist = sweep_impl(getVoxel, callback, vec, base, max, epsilon)
 
     // translate box by distance needed to updated base value
-    if (!noTranslate) box.translate(result)
+    if (!noTranslate) {
+        for (i = 0; i < 3; i++) {
+            result[i] = (dir[i] > 0) ? max[i] - box.max[i] : base[i] - box.base[i]
+        }
+        box.translate(result)
+    }
 
     // return value is total distance moved (not necessarily magnitude of [end]-[start])
     return dist

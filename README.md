@@ -24,7 +24,7 @@ npm install voxel-aabb-sweep
 ```js
 var sweep = require('voxel-aabb-sweep')
 var callback = function (dist, axis, dir, vec) { /* .. */ }
-var distance = sweep(getVoxels, box, vector, callback, noTranslate)
+var distance = sweep(getVoxels, box, vector, callback, noTranslate, epsilon)
 ```
 
  * `distance` - the total scalar distance the AABB moved during the sweep
@@ -32,7 +32,8 @@ var distance = sweep(getVoxels, box, vector, callback, noTranslate)
  * `box` - an object shaped like an [aabb-3d](https://github.com/andyhall/aabb-3d)
  * `vector` - vector along which the AABB is to move. E.g. `[5, 10, -3]`
  * `callback` - A function that will get called when a collision occurs.
- * `noTranslate` - (optional) If true, the AABB will not be translated to its new position.
+ * `noTranslate` - (default false) If true, the AABB will not be translated to its new position.
+ * `epsilon` - (default 1e-10) Rounding factor by which an AABB must cross a voxel boundary to count
 
 The collision callback:
 

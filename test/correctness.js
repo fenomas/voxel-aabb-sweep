@@ -218,5 +218,45 @@ test("correctness (nearby obstruction)", function (t) {
 
 
 
+test("correctness - doesn't go into collided wall", function (t) {
+    var getVoxels = function (x, y, z) {
+        if (x >= 10) return true
+        if (x <= -11) return true
+        return false
+    }
+    var box = new AABB([0, 0, 0], [1, 1, 1])
+    var callback = function (dist, axis, dir, vec) {
+        return true
+        // vec[axis] = 0
+    }
+    var vec = []
+
+    function test(dir) {
+        for (var i=0; i<3; i++) {
+            box.base[i] = Math.random()
+            box.max[i] = box.base[i] + 1 + Math.random()
+            vec[i] = 5 * Math.random()
+        }
+        vec[0] = dir ? 50 : -50
+        var dist = sweep(getVoxels, box, vec, callback)
+        return !(box.max[0] > 10 || box.base[0] < -10)
+    }
+    
+    var ok = true
+    for (var i = 0; i < N; i++) {
+        ok = ok && test(i%2)
+        if (!ok) {
+            console.log('base', box.base)
+            console.log('max', box.max)
+            t.fail('Went beyond collision boundary on '+i+'th random test')
+            break
+        }
+    }
+
+    if (ok) t.pass('Passed ' + N + ' randomized sliding tests')
+
+    t.end()
+})
+
 
 
