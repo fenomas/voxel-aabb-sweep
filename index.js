@@ -131,7 +131,8 @@ function sweep_impl(getVoxel, callback, vec, base, max, epsilon) {
         // var j1 = [x1 - stepx, y1 - stepy, z1 - stepz][j_axis]
         // var k1 = [x1 - stepx, y1 - stepy, z1 - stepz][k_axis]
         // console.log('=== step', s, 'to', i0, '   sweep', js, j0 + ',' + j1, '   ', ks, k0 + ',' + k1)
-
+        if(isNaN(x0)||isNaN(y0)||isNaN(z0))
+            return false
         for (var x = x0; x != x1; x += stepx) {
             for (var y = y0; y != y1; y += stepy) {
                 for (var z = z0; z != z1; z += stepz) {
