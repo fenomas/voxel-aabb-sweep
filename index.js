@@ -26,7 +26,7 @@ function sweep_impl(getVoxel, callback, vec, base, max, epsilon) {
     // as raycast enters each new voxel, iterate in 2D over the AABB's 
     // leading face in that axis looking for collisions
     // 
-    // original raycast implementation: https://github.com/andyhall/fast-voxel-raycast
+    // original raycast implementation: https://github.com/fenomas/fast-voxel-raycast
     // original raycast paper: http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
 
     var tr = tr_arr

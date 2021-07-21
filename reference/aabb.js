@@ -2,7 +2,7 @@
 module.exports = AABB
 
 
-// minimal reproduction of https://github.com/andyhall/aabb-3d
+// minimal reproduction of https://github.com/fenomas/aabb-3d
 
 
 function AABB(base, max) {

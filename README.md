@@ -11,7 +11,7 @@ and each time the ray crosses a voxel boundary, it checks for collisions across 
 AABB's leading face in that axis. This gives correct results even across long movements,
 with reasonably solid performance.
  
-The raycasting algorithm is from [fast-voxel-raycast](https://github.com/andyhall/fast-voxel-raycast).
+The raycasting algorithm is from [fast-voxel-raycast](https://github.com/fenomas/fast-voxel-raycast).
 
 ### Installation
 
@@ -29,7 +29,7 @@ var distance = sweep(getVoxels, box, vector, callback, noTranslate, epsilon)
 
  * `distance` - the total scalar distance the AABB moved during the sweep
  * `getVoxel` - a `function(x,y,z)` that returns a truthy value for voxels that collide the AABB
- * `box` - an object shaped like an [aabb-3d](https://github.com/andyhall/aabb-3d)
+ * `box` - an object shaped like an [aabb-3d](https://github.com/fenomas/aabb-3d)
  * `vector` - vector along which the AABB is to move. E.g. `[5, 10, -3]`
  * `callback` - A function that will get called when a collision occurs.
  * `noTranslate` - (default false) If true, the AABB will not be translated to its new position.
